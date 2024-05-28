@@ -58,11 +58,19 @@ module "eks" {
   cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true
 
-  # cluster_addons = {
+  cluster_addons = {
   #   aws-ebs-csi-driver = {
   #     service_account_role_arn = module.irsa-ebs-csi.iam_role_arn
   #   }
-  # }
+      coredns = {
+      resolve_conflicts = "OVERWRITE"
+    }
+    kube-proxy = {}
+    vpc-cni = {
+      resolve_conflicts = "OVERWRITE"
+    }
+  }
+  enable_irsa = true
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -71,6 +79,28 @@ module "eks" {
     ami_type = "AL2_ARM_64"
 
   }
+  # The formula for defining the maximum number of Pods per EC2 Node instance is as follows:
+  # N * (M-1) + 2
+  # Where:
+  # N is the number of Elastic Network Interfaces (ENI) of the instance type
+  # M is the number of IP addresses per ENI
+  # So for the instance you used which is t3.micro the number of pods that can be deployed are:
+  # 2 * (2-1) + 2 = 4 Pods, the 4 pods capacity is already used by pods in kube-system namespace
+  # aws ec2 describe-instance-types --filters "Name=instance-type,Values=t4g.*" --query "InstanceTypes[].{Type: InstanceType, MaxENI: NetworkInfo.MaximumNetworkInterfaces, IPv4addr: NetworkInfo.Ipv4AddressesPerInterface}" --output table
+
+  # ---------------------------------------
+  # |        DescribeInstanceTypes        |
+  # +----------+----------+---------------+
+  # | IPv4addr | MaxENI   |     Type      | Pods
+  # +----------+----------+---------------+
+  # |  2       |  2       |  t4g.nano     |   4
+  # |  6       |  3       |  t4g.medium   |  14
+  # |  15      |  4       |  t4g.2xlarge  |  47
+  # |  12      |  3       |  t4g.large    |  26
+  # |  4       |  3       |  t4g.small    |  10
+  # |  15      |  4       |  t4g.xlarge   |  47
+  # |  2       |  2       |  t4g.micro    |   4
+  # +----------+----------+---------------+
 
   eks_managed_node_groups = {
     one = {
@@ -111,3 +141,6 @@ module "eks" {
 #   role_policy_arns              = [data.aws_iam_policy.ebs_csi_policy.arn]
 #   oidc_fully_qualified_subjects = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
 # }
+
+# at some point we need to access some secrets from AWS Secrets Manager
+# https://secrets-store-csi-driver.sigs.k8s.io
