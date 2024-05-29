@@ -36,3 +36,16 @@ output "configure_kubectl" {
   description = "Configure kubectl: make sure you're logged in with the correct AWS profile and run the following command to update your kubeconfig"
   value       = "aws eks --region ${var.region} update-kubeconfig --name ${module.eks.cluster_name}"
 }
+
+output "vpc_id" {
+  description = "VPC id for use in other projects"
+  value       = module.vpc.vpc_id
+}
+output "vpc_database_subnet_group_name" {
+  description = "VPC database_subnet_group_name for use in other projects"
+  value       = module.vpc.database_subnet_group_name
+}
+output "vpc_private_subnets_cidr_blocks" {
+  description = "VPC private_subnets_cidr_blocks for use in other projects"
+  value       = module.vpc.private_subnets_cidr_blocks
+}
